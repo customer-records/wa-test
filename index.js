@@ -7,7 +7,7 @@ const jsQR = require("jsqr");
 const { createCanvas, loadImage } = require("canvas");
 
 const TARGET_HOUR = 22;
-const TARGET_MINUTE = 38;
+const TARGET_MINUTE = 40;
 const USER_DATA_DIR = path.join(__dirname, "puppeteer-data");
 
 function getImagesForToday() {
