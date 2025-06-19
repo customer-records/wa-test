@@ -6,8 +6,8 @@ const qrcode = require("qrcode-terminal");
 const jsQR = require("jsqr");
 const { createCanvas, loadImage } = require("canvas");
 
-const TARGET_HOUR = 12;
-const TARGET_MINUTE = 0;
+const TARGET_HOUR = 3;
+const TARGET_MINUTE = 52;
 const USER_DATA_DIR = path.join(__dirname, "puppeteer-data");
 
 function getImagesForToday() {
@@ -88,50 +88,63 @@ function extractQrCode(page) {
   });
 }
 
-function publishStatus(page, imageFile) {
+async function publishStatus(page, imageFile) {
   const imagePath = path.join(__dirname, imageFile);
   if (!fs.existsSync(imagePath)) {
     console.log("Файл не найден:", imagePath);
-    return Promise.resolve();
+    return;
   }
 
-  return page
-    .$("button[aria-label='Статус']")
-    .then((el) =>
-      el
-        ? el.click().then(() => wait(2000))
-        : Promise.reject("❌ Не найден элемент 'Статус'")
-    )
-    .then(() => page.$("button[aria-label='Add Status']"))
-    .then((el) =>
-      el
-        ? el.click().then(() => wait(1000))
-        : Promise.reject("❌ Не найдена кнопка 'Add Status'")
-    )
-    .then(() =>
-      page.$$eval("li", (elements) => {
-        const target = elements.find((el) => el.textContent.includes("Фото"));
-        if (!target) throw new Error("❌ Не найдена кнопка 'Фото и видео'");
-        target.click();
-      })
-    )
-    .then(() => wait(1000))
-    .then(() => page.$("input[type='file']"))
-    .then((el) =>
-      el
-        ? el.uploadFile(imagePath).then(() => wait(2000))
-        : Promise.reject("❌ Не найден input[type='file']")
-    )
-    .then(() => page.$("div[aria-label='Отправить']"))
-    .then((el) =>
-      el
-        ? el.click().then(() => wait(2000))
-        : Promise.reject("❌ Не найдена кнопка 'Отправить'")
-    )
-    .then(() =>
-      console.log(`✅ История с файлом ${imageFile} успешно опубликована.`)
-    )
-    .catch((err) => console.log(err));
+  const statusIcon = await page.$('[data-icon="status-refreshed"]');
+  if (!statusIcon) {
+    console.log("❌ Иконка статуса не найдена.");
+    return;
+  }
+
+  const statusButton = await statusIcon.evaluateHandle((el) =>
+    el.closest("button")
+  );
+  if (!statusButton) {
+    console.log("❌ Не удалось найти родительскую кнопку для иконки статуса.");
+    return;
+  }
+
+  await statusButton.click();
+  await wait(2000);
+
+  const addStatusBtn = await page.$('button[aria-label="Add Status"]');
+  if (!addStatusBtn) {
+    console.log("❌ Не найдена кнопка 'Add Status'");
+    return;
+  }
+  await addStatusBtn.click();
+  await wait(1000);
+
+  await page.$$eval("li", (elements) => {
+    const target = elements.find((el) => el.textContent.includes("Фото"));
+    if (!target) throw new Error("❌ Не найдена кнопка 'Фото и видео'");
+    target.click();
+  });
+
+  await wait(1000);
+
+  const fileInput = await page.$("input[type='file']");
+  if (!fileInput) {
+    console.log("❌ Не найден input[type='file']");
+    return;
+  }
+  await fileInput.uploadFile(imagePath);
+  await wait(2000);
+
+  const sendButton = await page.$("div[aria-label='Отправить']");
+  if (!sendButton) {
+    console.log("❌ Не найдена кнопка 'Отправить'");
+    return;
+  }
+  await sendButton.click();
+  await wait(2000);
+
+  console.log(`✅ История с файлом ${imageFile} успешно опубликована.`);
 }
 
 function loop(page) {
