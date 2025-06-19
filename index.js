@@ -6,8 +6,8 @@ const qrcode = require("qrcode-terminal");
 const jsQR = require("jsqr");
 const { createCanvas, loadImage } = require("canvas");
 
-const TARGET_HOUR = 20;
-const TARGET_MINUTE = 56;
+const TARGET_HOUR = 1;
+const TARGET_MINUTE = 50;
 const USER_DATA_DIR = path.join(__dirname, "puppeteer-data");
 
 function getImagesForToday() {
