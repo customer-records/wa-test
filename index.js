@@ -7,7 +7,7 @@ const jsQR = require("jsqr");
 const { createCanvas, loadImage } = require("canvas");
 
 const TARGET_HOUR = 3;
-const TARGET_MINUTE = 45;
+const TARGET_MINUTE = 59;
 const USER_DATA_DIR = path.join(__dirname, "puppeteer-data");
 
 function getImagesForToday() {
@@ -112,7 +112,6 @@ async function publishStatus(page, imageFile) {
   await statusButton.click();
   await wait(3000);
 
-  // Повторяем до 10 раз, пока не появится кнопка Add Status
   for (let i = 0; i < 10; i++) {
     const addStatusBtn = await page.$('button[aria-label="Add Status"]');
     if (addStatusBtn) {
@@ -126,7 +125,7 @@ async function publishStatus(page, imageFile) {
   await page.$$eval("li", (elements) => {
     const target = elements.find(
       (el) =>
-        el.textContent.includes("Фото") || el.textContent.includes("Photo")
+        el.textContent.includes("Photo") || el.textContent.includes("Фото")
     );
     if (!target) throw new Error("❌ Не найдена кнопка 'Фото и видео'");
     target.click();
@@ -143,10 +142,10 @@ async function publishStatus(page, imageFile) {
   await wait(2500);
 
   const sendButton = await page.$(
-    "div[aria-label='Отправить'], div[aria-label='Send']"
+    "div[aria-label='Send'], div[aria-label='Отправить']"
   );
   if (!sendButton) {
-    console.log("❌ Не найдена кнопка 'Отправить'");
+    console.log("❌ Не найдена кнопка 'Send'");
     return;
   }
   await sendButton.click();
@@ -181,14 +180,14 @@ function startPuppeteer() {
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
-        "--lang=ru-RU,ru",
+        "--lang=en-US,en",
         "--window-size=1280,800",
       ],
     })
     .then((browser) => browser.newPage())
     .then(async (page) => {
-      await page.setExtraHTTPHeaders({ "Accept-Language": "ru-RU,ru" });
-      await page.goto("https://web.whatsapp.com/");
+      await page.setExtraHTTPHeaders({ "Accept-Language": "en-US,en" });
+      await page.goto("https://web.whatsapp.com/?lang=en");
       await wait(6000);
       const qrPresent = await waitForQr(page);
       if (qrPresent) {
