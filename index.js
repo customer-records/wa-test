@@ -6,8 +6,8 @@ const qrcode = require("qrcode-terminal");
 const jsQR = require("jsqr");
 const { createCanvas, loadImage } = require("canvas");
 
-const TARGET_HOUR = 1;
-const TARGET_MINUTE = 50;
+const TARGET_HOUR = 3;
+const TARGET_MINUTE = 45;
 const USER_DATA_DIR = path.join(__dirname, "puppeteer-data");
 
 function getImagesForToday() {
@@ -110,23 +110,29 @@ async function publishStatus(page, imageFile) {
   }
 
   await statusButton.click();
-  await wait(2000);
+  await wait(3000);
 
-  const addStatusBtn = await page.$('button[aria-label="Add Status"]');
-  if (!addStatusBtn) {
-    console.log("❌ Не найдена кнопка 'Add Status'");
-    return;
+  // Повторяем до 10 раз, пока не появится кнопка Add Status
+  for (let i = 0; i < 10; i++) {
+    const addStatusBtn = await page.$('button[aria-label="Add Status"]');
+    if (addStatusBtn) {
+      await addStatusBtn.click();
+      await wait(2000);
+      break;
+    }
+    await wait(1000);
   }
-  await addStatusBtn.click();
-  await wait(1000);
 
   await page.$$eval("li", (elements) => {
-    const target = elements.find((el) => el.textContent.includes("Фото"));
+    const target = elements.find(
+      (el) =>
+        el.textContent.includes("Фото") || el.textContent.includes("Photo")
+    );
     if (!target) throw new Error("❌ Не найдена кнопка 'Фото и видео'");
     target.click();
   });
 
-  await wait(1000);
+  await wait(1500);
 
   const fileInput = await page.$("input[type='file']");
   if (!fileInput) {
@@ -134,9 +140,11 @@ async function publishStatus(page, imageFile) {
     return;
   }
   await fileInput.uploadFile(imagePath);
-  await wait(2000);
+  await wait(2500);
 
-  const sendButton = await page.$("div[aria-label='Отправить']");
+  const sendButton = await page.$(
+    "div[aria-label='Отправить'], div[aria-label='Send']"
+  );
   if (!sendButton) {
     console.log("❌ Не найдена кнопка 'Отправить'");
     return;
@@ -168,31 +176,31 @@ function startPuppeteer() {
     .launch({
       headless: false,
       userDataDir: USER_DATA_DIR,
-      defaultViewport: null,
+      defaultViewport: { width: 1280, height: 800 },
       protocolTimeout: 300000,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--lang=ru-RU,ru",
+        "--window-size=1280,800",
+      ],
     })
     .then((browser) => browser.newPage())
-    .then((page) => {
-      return page
-        .goto("https://web.whatsapp.com/")
-        .then(() => wait(5000))
-        .then(() => waitForQr(page))
-        .then((qrPresent) => {
-          if (qrPresent) {
-            console.log("Обнаружен QR-код. Ждём авторизацию...");
-            return extractQrCode(page)
-              .then(() =>
-                page.waitForSelector('div[data-testid="chat-list"]', {
-                  timeout: 0,
-                })
-              )
-              .then(() => page);
-          } else {
-            console.log("✅ Авторизация уже существует, QR-код не обнаружен.");
-            return page;
-          }
+    .then(async (page) => {
+      await page.setExtraHTTPHeaders({ "Accept-Language": "ru-RU,ru" });
+      await page.goto("https://web.whatsapp.com/");
+      await wait(6000);
+      const qrPresent = await waitForQr(page);
+      if (qrPresent) {
+        console.log("Обнаружен QR-код. Ждём авторизацию...");
+        await extractQrCode(page);
+        await page.waitForSelector('div[data-testid="chat-list"]', {
+          timeout: 0,
         });
+      } else {
+        console.log("✅ Авторизация уже существует, QR-код не обнаружен.");
+      }
+      return page;
     })
     .then((page) => loop(page))
     .catch((err) => console.error("Ошибка запуска:", err));
